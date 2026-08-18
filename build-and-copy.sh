@@ -70,6 +70,7 @@ VLLM_RELEASE_TAG="prebuilt-vllm-current"
 PREBUILT_WHEELS_SUPPORTED_ARCHS="12.1a"
 CLEANUP_MODE="false"
 CONFIG_FILE=""
+CUDA_IMAGE=""
 WHEEL_CACHE_ROOT="./.wheel-cache"
 FLASHINFER_PROFILE="regular"
 VLLM_PROFILE="regular"
@@ -519,6 +520,7 @@ usage() {
     echo "  -t, --tag <tag>               : Local image tag (default: 'vllm-node'; preset tags: 'vllm-node-tf5', 'vllm-node-mxfp4', or 'vllm-node-b12x')"
     echo "  --use-wheels                  : Build only the runner from precompiled wheels; never implicitly build source."
     echo "  --gpu-arch <arch>             : GPU architecture for NCCL, wheel, and source builds (default: '${DEFAULT_GPU_ARCH_LIST}')"
+    echo "  --cuda-image <image>          : Base CUDA image (default: the Dockerfile's CUDA_IMAGE ARG)"
     echo "  --rebuild-flashinfer          : Force rebuild of FlashInfer wheels (ignore cached wheels)"
     echo "  --rebuild-vllm                : Force rebuild of vLLM wheels (ignore cached wheels)"
     echo "  --force-flashinfer-download   : Force download of FlashInfer wheels (skip cached wheel checks)"
@@ -558,6 +560,7 @@ while [[ "$#" -gt 0 ]]; do
         -t|--tag) IMAGE_TAG="$2"; IMAGE_TAG_SET=true; shift ;;
         --use-wheels) USE_WHEELS=true ;;
         --gpu-arch) GPU_ARCH_LIST="$2"; GPU_ARCH_SET=true; shift ;;
+        --cuda-image) CUDA_IMAGE="$2"; shift ;;
         --rebuild-flashinfer) REBUILD_FLASHINFER=true ;;
         --rebuild-vllm) REBUILD_VLLM=true ;;
         --force-flashinfer-download) FORCE_FLASHINFER_DOWNLOAD=true ;;
@@ -942,6 +945,9 @@ if [ "$EXP_MXFP4" = false ]; then
     COMMON_BUILD_FLAGS+=("--build-arg" "TORCHVISION_VERSION=$TORCHVISION_VERSION")
     COMMON_BUILD_FLAGS+=("--build-arg" "TORCHAUDIO_VERSION=$TORCHAUDIO_VERSION")
     COMMON_BUILD_FLAGS+=("--build-arg" "CUTLASS_DSL_VERSION=$CUTLASS_DSL_VERSION")
+fi
+if [ -n "$CUDA_IMAGE" ]; then
+    COMMON_BUILD_FLAGS+=("--build-arg" "CUDA_IMAGE=$CUDA_IMAGE")
 fi
 NCCL_NVCC_GENCODE="$(gpu_arch_to_nccl_gencode "$GPU_ARCH_LIST")"
 COMMON_BUILD_FLAGS+=("--build-arg" "NCCL_NVCC_GENCODE=$NCCL_NVCC_GENCODE")
