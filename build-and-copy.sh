@@ -43,6 +43,8 @@ EXP_B12X_TORCHAUDIO_VERSION="2.11.0"
 B12X_REPO=""
 B12X_REF=""
 B12X_CACHEBUST=""
+B12X_REPO_SET=false
+B12X_REF_SET=false
 FLASHINFER_REF="main"
 FLASHINFER_REF_SET=false
 TMP_IMAGE=""
@@ -623,6 +625,8 @@ usage() {
     echo "  --tf5                         : Deprecated compatibility flag; tag defaults to 'vllm-node-tf5' (aliases: --pre-tf, --pre-transformers)"
     echo "  --exp-mxfp4, --experimental-mxfp4 : Build with experimental native MXFP4 support"
     echo "  --exp-b12x, --experimental-b12x   : Select B12X; pulls its prebuilt image unless a local wheel/image build is requested"
+    echo "  --b12x-repo <url>             : Build the B12X kernel package from this repository into the runner (default: '${B12X_PACKAGE_REPO}', only for B12X-fork builds)"
+    echo "  --b12x-ref <ref>              : B12X commit SHA, branch or tag to build (default: '${B12X_PACKAGE_REF}'); implies the B12X package build for any --vllm-repo"
     echo "  --apply-vllm-pr <pr-num>      : Apply a specific PR patch to vLLM source. Can be specified multiple times."
     echo "  --apply-preset-vllm-prs       : Apply preset vLLM PRs even with --vllm-repo, --vllm-ref, or --apply-vllm-pr."
     echo "  --apply-flashinfer-pr <pr-num>: Apply a specific PR patch to FlashInfer source. Can be specified multiple times."
@@ -719,6 +723,8 @@ while [[ "$#" -gt 0 ]]; do
         --tf5|--pre-tf|--pre-transformers) PRE_TRANSFORMERS=true ;;
         --exp-mxfp4|--experimental-mxfp4) EXP_MXFP4=true ;;
         --exp-b12x|--experimental-b12x) EXP_B12X=true ;;
+        --b12x-repo) B12X_PACKAGE_REPO="$2"; B12X_REPO_SET=true; shift ;;
+        --b12x-ref) B12X_PACKAGE_REF="$2"; B12X_REF_SET=true; shift ;;
         --apply-vllm-pr)
             if [ -n "$2" ] && [[ "$2" != -* ]]; then
                if [ -n "$VLLM_PRS" ]; then
@@ -838,7 +844,8 @@ NORMALIZED_VLLM_REPO="${NORMALIZED_VLLM_REPO%.git}"
 NORMALIZED_DEFAULT_VLLM_REPO="${DEFAULT_VLLM_REPO%/}"
 NORMALIZED_DEFAULT_VLLM_REPO="${NORMALIZED_DEFAULT_VLLM_REPO%.git}"
 if [ "$NORMALIZED_VLLM_REPO" = "$NORMALIZED_DEFAULT_VLLM_REPO" ] || \
-   [ "$NORMALIZED_VLLM_REPO" = "$EXP_B12X_VLLM_REPO" ]; then
+   [ "$NORMALIZED_VLLM_REPO" = "$EXP_B12X_VLLM_REPO" ] || \
+   [ "$B12X_REPO_SET" = true ] || [ "$B12X_REF_SET" = true ]; then
     B12X_REPO="$B12X_PACKAGE_REPO"
     B12X_REF="$B12X_PACKAGE_REF"
     B12X_CACHEBUST="$(date +%s)"
