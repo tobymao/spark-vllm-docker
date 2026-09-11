@@ -34,7 +34,7 @@ VLLM_SOURCE_STAGING_DIR=""
 VLLM_SOURCE_CONTEXT=""
 EXP_B12X=false
 EXP_B12X_VLLM_REPO="https://github.com/local-inference-lab/vllm"
-EXP_B12X_VLLM_REF="dev/infernal-invocation"
+EXP_B12X_VLLM_REF="dev/jovian-judgement"
 B12X_PACKAGE_REPO="https://github.com/lukealonso/b12x.git"
 B12X_PACKAGE_REF="master"
 EXP_B12X_TORCH_VERSION="2.13.0"
@@ -627,7 +627,7 @@ usage() {
     echo "  --exp-b12x, --experimental-b12x   : Select B12X; pulls its prebuilt image unless a local wheel/image build is requested"
     echo "  --b12x-repo <url>             : Build the B12X kernel package from this repository into the runner (default: '${B12X_PACKAGE_REPO}', only for B12X-fork builds)"
     echo "  --b12x-ref <ref>              : B12X commit SHA, branch or tag to build (default: '${B12X_PACKAGE_REF}'); implies the B12X package build for any --vllm-repo"
-    echo "  --apply-vllm-pr <pr-num>      : Apply a specific PR patch to vLLM source. Can be specified multiple times."
+    echo "  --apply-vllm-pr <pr-or-url>   : Apply a vLLM PR number or full GitHub PR URL to source. Can be specified multiple times."
     echo "  --apply-preset-vllm-prs       : Apply preset vLLM PRs even with --vllm-repo, --vllm-ref, or --apply-vllm-pr."
     echo "  --apply-flashinfer-pr <pr-num>: Apply a specific PR patch to FlashInfer source. Can be specified multiple times."
     echo "  --full-log                    : Enable full build logging (--progress=plain)"
@@ -638,6 +638,22 @@ usage() {
     echo "  --setup                       : Force autodiscovery and save configuration (even if .env exists)"
     echo "  -h, --help                    : Show this help message"
     exit 1
+}
+
+normalize_vllm_pr_reference() {
+    local value="$1"
+
+    if [[ "$value" =~ ^[1-9][0-9]*$ ]]; then
+        printf '%s\n' "$value"
+        return 0
+    fi
+
+    if [[ "$value" =~ ^https://github\.com/[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*/pull/[1-9][0-9]*/?$ ]]; then
+        printf '%s\n' "${value%/}"
+        return 0
+    fi
+
+    return 1
 }
 
 # Parse all arguments
@@ -726,15 +742,20 @@ while [[ "$#" -gt 0 ]]; do
         --b12x-repo) B12X_PACKAGE_REPO="$2"; B12X_REPO_SET=true; shift ;;
         --b12x-ref) B12X_PACKAGE_REF="$2"; B12X_REF_SET=true; shift ;;
         --apply-vllm-pr)
-            if [ -n "$2" ] && [[ "$2" != -* ]]; then
+            VLLM_PR_REFERENCE=""
+            if [ -n "${2:-}" ]; then
+                VLLM_PR_REFERENCE="$(normalize_vllm_pr_reference "$2")" \
+                    || VLLM_PR_REFERENCE=""
+            fi
+            if [ -n "$VLLM_PR_REFERENCE" ]; then
                if [ -n "$VLLM_PRS" ]; then
-                   VLLM_PRS="$VLLM_PRS $2"
+                   VLLM_PRS="$VLLM_PRS $VLLM_PR_REFERENCE"
                else
-                   VLLM_PRS="$2"
+                   VLLM_PRS="$VLLM_PR_REFERENCE"
                fi
                shift
             else
-               echo "Error: --apply-vllm-pr requires a PR number."
+               echo "Error: --apply-vllm-pr requires a positive integer PR number or full https://github.com/OWNER/REPO/pull/NUMBER URL."
                exit 1
             fi
             ;;
